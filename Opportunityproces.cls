@@ -27,7 +27,7 @@ public class OpportunityProcessor {
     }
     
     public void sendEmailNotifications() {
-        List<Opportunity> opportunities = [SELECT Id, Name, Owner.Email FROM Opportunity WHERE Amount > 10000];
+        List<Opportunity> opportunities = [SELECT Id, Name, Owner.Email FROM Opportunity WHERE Amount > 1000];
         
         for (Opportunity opp : opportunities) {
             Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
