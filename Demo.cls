@@ -15,7 +15,7 @@ public class AccountContactHandler {
             
             contactsToInsert.add(newContact);
 
-            if (contactsToInsert.size() > 10) {
+            if (contactsToInsert.size() >= 200) {
                 insert contactsToInsert;
                 contactsToInsert.clear();
             }
