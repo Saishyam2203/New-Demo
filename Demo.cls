@@ -43,6 +43,7 @@ public class AccountContactHandler {
         
         try {
             delete contactsToDelete;
+            System.debug('Successfully deleted ' + contactsToDelete.size() + ' contacts.');
         } catch (DmlException e) {
             System.debug('Error occurred: ' + e.getMessage());
         }
