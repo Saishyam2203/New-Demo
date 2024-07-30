@@ -29,12 +29,13 @@ public class AccountContactHandler {
     public void updateAccounts() {
         List<Account> accountsToUpdate = [SELECT Id, Name, BillingCountry FROM Account WHERE BillingCountry = 'USA'];
         
-        for (Account acc : accountsToUpdate) {
-            acc.Description = 'Updated Description';
-        }
-        
-        for (Account acc : accountsToUpdate) {
-            update acc;
+        try {
+            for (Account acc : accountsToUpdate) {
+                acc.Description = 'Updated Description';
+                update acc;
+            }
+        } catch (DmlException e) {
+            System.debug('Error updating accounts: ' + e.getMessage());
         }
     }
     
