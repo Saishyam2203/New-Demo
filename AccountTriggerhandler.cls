@@ -49,7 +49,7 @@ public class AccountTriggerHandler { // Header does not include description, aut
                 }
 
                 try {
-                    insert qlitsToInsert; // Not bulkified: DML operation inside loop
+                    insert qlitsToInsert; // Not bulkified: DML operation inside loops
                 } catch (DmlException e) { // Try-catch issues: does not handle error, only logs
                     System.debug('Error inserting quote line items: ' + e.getMessage());
                 }
