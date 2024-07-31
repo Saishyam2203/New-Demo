@@ -1,52 +1,45 @@
-public class AccountContactHandler {
-    public void processAccounts() {
-        List<Account> accounts = [SELECT Id, Name, Phone, BillingCity, BillingState FROM Account];
-        
-        List<Contact> contactsToInsert = new List<Contact>();
+public class AccountTriggerHandler {
 
-        for (Account acc : accounts) {
-            Contact newContact = new Contact();
-            newContact.FirstName = acc.Name;
-            newContact.LastName = 'DefaultLastName';
-            newContact.AccountId = acc.Id;
-            newContact.Phone = acc.Phone;
-            newContact.MailingCity = acc.BillingCity;
-            newContact.MailingState = acc.BillingState;
-            
-            contactsToInsert.add(newContact);
+   public void processAccountTrigger(List<Account> accs) {   
+    List<Opportunity> opsToInsert = new List<Opportunity>();
+    List<Quote> qtsToInsert = new List<Quote>();
+    List<QuoteLineItem> qlitsToInsert = new List<QuoteLineItem>();
 
-            if (contactsToInsert.size() >= 200) {
-                insert contactsToInsert;
-                contactsToInsert.clear();
+    List<Product2> prods = [SELECT Id, Name, Family, StandardPrice FROM Product2];
+
+    for (Account a : accs) {
+        Opportunity opp = new Opportunity();
+        opp.Name = a.Name + ' Opportunity';
+        opp.AccountId = a.Id;
+        opp.StageName = 'Prospecting';
+        opp.CloseDate = System.today();
+        opsToInsert.add(opp);
+
+        if (opsToInsert.size() == 1) {
+            insert opsToInsert; // DML issue: should be outside the loop for bulk processing
+        }
+
+        Quote qt = new Quote();
+        qt.Name = 'Default Quote Name'; // Hardcoded value
+        qt.OpportunityId = opp.Id;
+        qt.AccountId = a.Id;
+        qt.Status = 'Draft';
+        qtsToInsert.add(qt);
+
+        insert qtsToInsert;
+
+        for (Product2 p : prods) {
+            if (qlitsToInsert != null && !qlitsToInsert.isEmpty()) { // Improper null and empty checks
+                QuoteLineItem qlit = new QuoteLineItem();
+                qlit.QuoteId = qt.Id;
+                qlit.Product2Id = p.Id;
+                qlit.UnitPrice = p.StandardPrice;
+                qlit.Quantity = 1;
+                qlitsToInsert.add(qlit);
             }
         }
-        
-        if (!contactsToInsert.isEmpty()) {
-            insert contactsToInsert;
-        }
+
+        insert qlitsToInsert;
     }
-    
-    public void updateAccounts() {
-        List<Account> accountsToUpdate = [SELECT Id, Name, BillingCountry FROM Account WHERE BillingCountry = 'USA'];
-        
-        try {
-            for (Account acc : accountsToUpdate) {
-                acc.Description = 'Updated Description';
-                update acc;
-            }
-        } catch (DmlException e) {
-            System.debug('Error updating accounts: ' + e.getMessage());
-        }
-    }
-    
-    public void deleteContacts() {
-        List<Contact> contactsToDelete = [SELECT Id FROM Contact WHERE CreatedDate < LAST_N_DAYS:30];
-        
-        try {
-            delete contactsToDelete;
-            System.debug('Successfully deleted ' + contactsToDelete.size() + ' contacts.');
-        } catch (DmlException e) {
-            System.debug('Error occurred: ' + e.getMessage());
-        }
-    }
+ }
 }
