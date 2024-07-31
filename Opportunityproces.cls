@@ -1,80 +1,44 @@
-public class OpportunityProcessor {
-    // Custom labels for hardcoded values
-    public static final String TASK_SUBJECT = Label.Task_Subject;
-    public static final String TASK_PRIORITY = Label.Task_Priority;
-    public static final String TASK_STATUS = Label.Task_Status;
-    public static final Integer BATCH_SIZE = 5;
-    public static final Integer HIGH_VALUE_AMOUNT = 1000;
-    public static final Integer OLD_TASK_DAYS = 60;
+public class AccountTriggerHandler {
+    public void processAccountTrigger(List<Account> accs) {
+        List<Opportunity> opsToInsert = new List<Opportunity>();
+        List<Quote> qtsToInsert = new List<Quote>();
+        List<QuoteLineItem> qlitsToInsert = new List<QuoteLineItem>();
 
-    /**
-     * Processes opportunities and creates follow-up tasks.
-     */
-    public void processOpportunities() {
-        List<Opportunity> opportunities = [SELECT Id, Name, Amount, StageName, CloseDate FROM Opportunity];
-        List<Task> tasksToCreate = new List<Task>();
+        List<Product2> prods = [SELECT Id, Name, Family, StandardPrice FROM Product2 WHERE Family = 'Hardware'];
 
-        for (Opportunity opp : opportunities) {
-            Task task = new Task();
-            task.Subject = TASK_SUBJECT;
-            task.WhatId = opp.Id;
-            task.Priority = TASK_PRIORITY;
-            task.Status = TASK_STATUS;
-            task.ActivityDate = opp.CloseDate;
-            task.Description = 'Follow up on the opportunity named ' + opp.Name;
-            
-            tasksToCreate.add(task);
+        for (Account a : accs) {
+            Opportunity opp = new Opportunity();
+            opp.Name = a.Name + ' Opportunity';
+            opp.AccountId = a.Id;
+            opp.StageName = 'Prospecting';
+            opp.CloseDate = System.today();
+            opsToInsert.add(opp);
 
-            if (tasksToCreate.size() >= BATCH_SIZE) {
-                insert tasksToCreate;
-                tasksToCreate.clear();
+            insert opsToInsert;
+
+            for (Opportunity o : opsToInsert) {
+                Quote qt = new Quote();
+                qt.Name = o.Name + ' Quote';
+                qt.OpportunityId = o.Id;
+                qt.AccountId = a.Id;
+                qt.Status = 'Draft';
+                qtsToInsert.add(qt);
+
+                insert qtsToInsert;
+
+                for (Quote q : qtsToInsert) {
+                    for (Product2 p : prods) {
+                        QuoteLineItem qlit = new QuoteLineItem();
+                        qlit.QuoteId = q.Id;
+                        qlit.Product2Id = p.Id;
+                        qlit.UnitPrice = p.StandardPrice;
+                        qlit.Quantity = 1;
+                        qlitsToInsert.add(qlit);
+
+                        insert qlitsToInsert;
+                    }
+                }
             }
-        }
-        
-        if (!tasksToCreate.isEmpty()) {
-            insert tasksToCreate;
-        }
-    }
-
-    /**
-     * Sends email notifications for high-value opportunities.
-     */
-    public void sendEmailNotifications() {
-        List<Opportunity> opportunities = [SELECT Id, Name, Owner.Email FROM Opportunity WHERE Amount > :HIGH_VALUE_AMOUNT];
-        
-        for (Opportunity opp : opportunities) {
-            Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
-            mail.setToAddresses(new String[] {opp.Owner.Email});
-            mail.setSubject('High-Value Opportunity');
-            mail.setPlainTextBody('Opportunity ' + opp.Name + ' has a high value.');
-            Messaging.sendEmail(new Messaging.SingleEmailMessage[] {mail});
-        }
-    }
-
-    /**
-     * Closes opportunities that are in the 'Negotiation/Review' stage for too long.
-     */
-    public void closeLostOpportunities() {
-        List<Opportunity> oppsToClose = [SELECT Id, Name FROM Opportunity WHERE StageName = 'Negotiation/Review'];
-        
-        for (Opportunity opp : oppsToClose) {
-            opp.StageName = 'Closed Lost';
-            opp.Description = 'Automatically closed due to prolonged negotiation.';
-        }
-        
-        update oppsToClose;
-    }
-
-    /**
-     * Deletes tasks that are older than a specified number of days.
-     */
-    public void deleteOldTasks() {
-        List<Task> tasksToDelete = [SELECT Id FROM Task WHERE CreatedDate < LAST_N_DAYS:OLD_TASK_DAYS];
-        
-        try {
-            delete tasksToDelete;
-        } catch (DmlException e) {
-            System.debug('Failed to delete tasks: ' + e.getMessage());
         }
     }
 }
